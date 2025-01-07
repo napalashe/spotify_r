@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Spotify Recommender - Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h2>Spotify Recommender</h2>
+      </div>
+      <div class="nav-right">
+        <div id="profileIcon">[icon]</div>
+        <!-- Sign Out Button -->
+        <button id="logoutBtn" class="logout-btn">Sign Out</button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+      <h1 id="welcomeMsg">Welcome, User!</h1>
+      <div id="recommendations" class="results">
+        <p>Fetching your recommendations...</p>
+      </div>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const accessToken = params.get("access_token");
+      const displayName = params.get("display_name") || "User";
+
+      console.log("Access Token:", accessToken);
+      console.log("Display Name:", displayName);
+
+      // Display Welcome Message
+      const welcomeMsg = document.getElementById("welcomeMsg");
+      welcomeMsg.textContent = `Welcome, ${displayName}!`;
+    </script>
+  </body>
+</html>

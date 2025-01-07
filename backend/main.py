@@ -9,16 +9,15 @@ import requests
 
 load_dotenv() 
 
-# Initialize the FastAPI app
+
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
-# Fetch env variables
+
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
-# 1. Route to Start Login Flow
 
 @app.get("/")
 def serve_index():
@@ -40,14 +39,14 @@ def login():
         f"&scope={scopes}"
     )
     return RedirectResponse(url=spotify_auth_url)
+@app.get("/dashboard")
+def dashboard_page():
+    return FileResponse("frontend/dashboard.html")
+
 
 
 @app.get("/spotify/callback")
 def spotify_callback(code: str):
-    """
-    Spotify redirects here after user approves the permissions.
-    We exchange the received 'code' for an 'access_token' (and maybe 'refresh_token').
-    """
     token_url = "https://accounts.spotify.com/api/token"
     payload = {
         "grant_type": "authorization_code",
@@ -65,10 +64,17 @@ def spotify_callback(code: str):
     access_token = token_data["access_token"]
     refresh_token = token_data.get("refresh_token", None)
 
-    
-    
-    
-    return RedirectResponse(f"/?access_token={access_token}&refresh_token={refresh_token}")
+    print(f"Access Token: {access_token}, Refresh Token: {refresh_token}")
+
+    user_info_url = "https://api.spotify.com/v1/me"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    user_info_response = requests.get(user_info_url, headers=headers)
+    user_info = user_info_response.json()
+
+    display_name = user_info.get("display_name", "User")
+    return RedirectResponse(f"/dashboard?access_token={access_token}&display_name={display_name}")
+
+
 
 
 class RecommendationRequest(BaseModel):
@@ -76,25 +82,47 @@ class RecommendationRequest(BaseModel):
     seed_tracks: list[str] = []
     seed_genres: list[str] = []
 
-
-@app.post("/recommendations")
-def get_recommendations(request_data: RecommendationRequest, token: str):
+@app.get("/recommendations")
+def get_recommendations(token: str, refresh_token: str = None):
     """
-    Use the Spotify Recommendations API to get recommended tracks based on the provided seeds.
-    The user’s 'token' must be passed as a query parameter or in the request body.
+    Fetch recommended songs based on the user's top tracks.
     """
-    url = "https://api.spotify.com/v1/recommendations"
-    params = {
-        "limit": 10,
-        "seed_artists": ",".join(request_data.seed_artists),
-        "seed_tracks": ",".join(request_data.seed_tracks),
-        "seed_genres": ",".join(request_data.seed_genres),
-    }
     headers = {"Authorization": f"Bearer {token}"}
+    try:
+        top_tracks_url = "https://api.spotify.com/v1/me/top/tracks"
+        response = requests.get(top_tracks_url, headers=headers)
+        if response.status_code == 401 and refresh_token:
+            print("Token expired. Refreshing token...")
+            new_token = refresh_access_token(refresh_token)
+            if not new_token:
+                raise HTTPException(status_code=401, detail="Failed to refresh token")
+            headers["Authorization"] = f"Bearer {new_token}"
+            response = requests.get(top_tracks_url, headers=headers)
+        response.raise_for_status()
 
-    response = requests.get(url, headers=headers, params=params)
+        top_tracks_data = response.json()
+        track_ids = [track["id"] for track in top_tracks_data.get("items", [])[:5]]
+
+        params = {"limit": 10, "seed_tracks": ",".join(track_ids)} if track_ids else {"limit": 10, "seed_genres": "pop"}
+        recommendations_url = "https://api.spotify.com/v1/recommendations"
+        rec_response = requests.get(recommendations_url, headers=headers, params=params)
+        rec_response.raise_for_status()
+
+        return rec_response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching recommendations: {e}")
+
+def refresh_access_token(refresh_token: str):
+    token_url = "https://accounts.spotify.com/api/token"
+    payload = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+    }
+    response = requests.post(token_url, data=payload)
     if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch recommendations")
-
-    return response.json()
-
+        print(f"Failed to refresh token: {response.text}")
+        return None
+    return response.json().get("access_token")
