@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Spotify Song Recommender</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <h1>Spotify Recommender</h1>
+    <!-- Login button -->
+    <button id="loginBtn">Login with Spotify</button>
+
+    <!-- Recommendation section (hidden by default) -->
+    <div id="recommendationForm" style="display: none">
+      <h2>Get Recommendations</h2>
+      <label for="seedTracks">Seed Tracks (comma separated):</label>
+      <input id="seedTracks" type="text" />
+      <button id="getRecsBtn">Get Recommendations</button>
+      <div id="results"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+  </body>
+</html>

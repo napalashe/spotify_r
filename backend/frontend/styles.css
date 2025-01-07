@@ -1,0 +1,21 @@
+body {
+  font-family: sans-serif;
+  margin: 20px;
+  padding: 20px;
+}
+h1 {
+  color: #1db954; /* Spotify green color */
+}
+button {
+  background-color: #1db954;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #1ed760;
+}
+#results p {
+  margin: 5px 0;
+}
